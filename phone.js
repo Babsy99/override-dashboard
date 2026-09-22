@@ -1,5 +1,5 @@
 const STD=["Base","Gold","Cheat Master"];
-const NAMES=["Jonesy","Bush","Adventure","8-Bit","Sonic","Tails","Shadow","Killswitch","Jackrabbit","Klombo","Crown","Storm Scout"];
+const NAMES=["Jonesy","Bush","Adventure","8-Bit","Sonic","Tails","Shadow","Killswitch","Jackrabbit","Klombo","Crown","Storm Scout","Pond","Crash","Blinky","Dumpster Dive"];
 const KEYS=NAMES.flatMap(n=>STD.map(v=>n+"|"+v));
 const store={
   get(k,fb){try{return JSON.parse(localStorage.getItem(k))??fb}catch{return fb}},
@@ -20,9 +20,9 @@ function render(){
     if(st==="have")have++; else out++;
     const [n,v]=k.split("|");
     const crown=p.mastered?"\u265B ":"";
-    return `<button class="tile ${st}" data-k="${k}">${crown}${n}<br>${v}${p.level?" \u00b7 "+p.level:""}</button>`;
+    return `<button class="tile ${st}${p.mastered?" mastered":""}" data-k="${k}">${crown}${n}<br>${v}${p.level?" \u00b7 Lvl "+p.level:""}</button>`;
   }).join("");
-  document.getElementById("count").textContent=have+" have \u00b7 "+out+" still out \u00b7 double-tap = mastered crown";
+  document.getElementById("count").textContent=have+" have \u00b7 "+out+" still out \u00b7 tap = have/out \u00b7 double-tap = mastered";
   g.querySelectorAll(".tile").forEach(b=>{
     b.onclick=()=>{
       const p=progress[b.dataset.k];
@@ -32,7 +32,7 @@ function render(){
     b.ondblclick=e=>{
       e.preventDefault();
       const p=progress[b.dataset.k];
-      p.mastered=!p.mastered; if(p.mastered){p.status="have";p.owned=true}
+      p.mastered=!p.mastered; if(p.mastered){p.status="have";p.owned=true; if(p.level<4)p.level=4}
       save(); render();
     };
   });
@@ -68,7 +68,7 @@ function fpFrom(data,w,h,x,y,tw,th){
 function goldPx(r,g,b){return r>165&&g>125&&b<120&&(r-b)>55&&(g-b)>30}
 function hasCrown(data,w,h,x,y,tw,th){
   const x0=Math.max(0,Math.floor(x+tw*0.28)),x1=Math.min(w,Math.floor(x+tw*0.72));
-  const y0=Math.max(0,Math.floor(y+th*0.03)),y1=Math.min(h,Math.floor(y+th*0.28));
+  const y0=Math.max(0,Math.floor(y+th*0.02)),y1=Math.min(h,Math.floor(y+th*0.30));
   let gold=0,tot=0;
   for(let py=y0;py<y1;py++){
     for(let px=x0;px<x1;px++){
@@ -76,7 +76,29 @@ function hasCrown(data,w,h,x,y,tw,th){
       if(goldPx(data[i],data[i+1],data[i+2]))gold++;
     }
   }
-  return tot>20&&gold>16&&gold/tot>0.035;
+  return tot>20&&gold>14&&gold/tot>0.028;
+}
+function readLevel(data,w,h,x,y,tw,th){
+  const x0=Math.max(0,Math.floor(x+tw*0.08));
+  const x1=Math.min(w,Math.floor(x+tw*0.92));
+  const y0=Math.max(0,Math.floor(y+th*0.78));
+  const y1=Math.min(h,Math.floor(y+th*0.98));
+  let bright=0,tot=0;
+  for(let py=y0;py<y1;py++){
+    for(let px=x0;px<x1;px++){
+      const i=(py*w+px)*4; tot++;
+      const r=data[i],g=data[i+1],b=data[i+2];
+      if(r>200&&g>200&&b>200)bright++;
+    }
+  }
+  if(tot<10)return 0;
+  const ratio=bright/tot;
+  if(ratio>0.18)return 5;
+  if(ratio>0.12)return 4;
+  if(ratio>0.08)return 3;
+  if(ratio>0.045)return 2;
+  if(ratio>0.02)return 1;
+  return 0;
 }
 function match(vec){
   const db=window.SPRITE_FP||{};
@@ -94,17 +116,18 @@ function ok(m,loose){
   if(m.dist<1.35)return true;
   if(m.dist<2.35&&m.margin>0.10)return true;
   if(m.dist<2.95&&m.margin>0.28)return true;
-  if(loose&&m.dist<3.45&&m.margin>0.18)return true;
+  if(loose&&m.dist<3.55&&m.margin>0.16)return true;
   return false;
 }
 function cellCrops(x,y,tw,th){
-  const inset=Math.round(Math.min(tw,th)*0.10);
-  const banner=Math.round(th*0.22);
-  const s=Math.round(Math.min(tw,th)*0.62);
+  const inset=Math.round(Math.min(tw,th)*0.08);
+  const banner=Math.round(th*0.24);
+  const s=Math.round(Math.min(tw,th)*0.58);
   return [
-    [x+inset,y+inset,tw-inset*2,th-inset*2],
     [x+inset,y+inset,tw-inset*2,Math.max(16,th-inset-banner)],
-    [x+(tw-s)/2,y+(th-s)*0.35,s,s]
+    [x+inset,y+Math.round(th*0.10),tw-inset*2,Math.max(16,th-Math.round(th*0.32))],
+    [x+(tw-s)/2,y+(th-s)*0.28,s,s],
+    [x+inset,y+inset,tw-inset*2,th-inset*2]
   ];
 }
 function scanGrid(data,w,h,cols,rows,padX,padY,loose){
@@ -123,8 +146,14 @@ function scanGrid(data,w,h,cols,rows,padX,padY,loose){
       });
       if(best&&ok(best,loose)){
         best.mastered=hasCrown(data,w,h,x,y,cellW,cellH);
+        best.level=readLevel(data,w,h,x,y,cellW,cellH);
+        if(best.mastered&&best.level<4)best.level=4;
         const p=hits.get(best.key);
         if(!p||best.dist<p.dist)hits.set(best.key,best);
+        else{
+          if(best.mastered)p.mastered=true;
+          if((best.level||0)>(p.level||0))p.level=best.level;
+        }
       }
     }
   }
@@ -132,19 +161,27 @@ function scanGrid(data,w,h,cols,rows,padX,padY,loose){
 }
 function scanWork(work,dense){
   const hits=new Map(),{data,w,h}=work,min=Math.min(w,h);
-  const add=(m,loose)=>{if(!ok(m,loose))return;const p=hits.get(m.key);if(!p||m.dist<p.dist)hits.set(m.key,m)};
+  const add=(m,loose)=>{
+    if(!ok(m,loose))return;
+    const p=hits.get(m.key);
+    if(!p||m.dist<p.dist)hits.set(m.key,m);
+    else{
+      if(m.mastered)p.mastered=true;
+      if((m.level||0)>(p.level||0))p.level=m.level;
+    }
+  };
   const v0=fpFrom(data,w,h,0,0,w,h); if(v0)add(match(v0));
   [0.42,0.56,0.70,0.84,0.94].forEach(f=>{
     const s=Math.round(min*f),x=(w-s)/2,y=(h-s)/2;
     const v=fpFrom(data,w,h,x,y,s,s); if(v)add(match(v));
   });
-  [[3,3,0.08,0.16],[3,3,0.12,0.20],[3,3,0.16,0.24],[3,4,0.08,0.14],[3,2,0.10,0.22]].forEach(([cols,rows,px,py])=>{
+  [[3,3,0.02,0.06],[3,3,0.06,0.12],[3,3,0.10,0.16],[3,3,0.14,0.22],[3,4,0.06,0.10],[3,2,0.08,0.18],[4,3,0.04,0.10]].forEach(([cols,rows,px,py])=>{
     const g=scanGrid(data,w,h,cols,rows,Math.round(w*px),Math.round(h*py),true);
     g.forEach(m=>add(m,true));
   });
   if(dense){
-    [0.16,0.22,0.30].map(f=>Math.round(min*f)).filter(s=>s>=24).forEach(size=>{
-      const step=Math.max(10,Math.round(size*0.38));
+    [0.14,0.20,0.28].map(f=>Math.round(min*f)).filter(s=>s>=24).forEach(size=>{
+      const step=Math.max(8,Math.round(size*0.34));
       for(let y=0;y<=h-size;y+=step)for(let x=0;x<=w-size;x+=step){
         const v=fpFrom(data,w,h,x,y,size,size); if(v)add(match(v),true);
       }
@@ -164,7 +201,7 @@ function grab(video,max){
 const live={stream:null,run:false,hits:new Map(),pend:new Map(),raf:0,busy:false,last:0,snap:false};
 function setSt(t){document.getElementById("st").textContent=t}
 function paintHits(){
-  document.getElementById("hits").innerHTML=[...live.hits.entries()].map(([k,h])=>`<span class="chip">${h.mastered?"\u265B ":""}${k.replace("|"," \u00b7 ")}</span>`).join("")||'<span class="chip">No lock yet</span>';
+  document.getElementById("hits").innerHTML=[...live.hits.entries()].map(([k,h])=>`<span class="chip">${h.mastered?"\u265B ":""}${k.replace("|"," \u00b7 ")}${h.level?" L"+h.level:""}</span>`).join("")||'<span class="chip">No lock yet</span>';
 }
 function merge(found,need){
   found.forEach(h=>{
@@ -172,7 +209,10 @@ function merge(found,need){
     if(n>=need){
       const p=live.hits.get(h.key);
       if(!p||h.dist<p.dist) live.hits.set(h.key,h);
-      else if(h.mastered) p.mastered=true;
+      else{
+        if(h.mastered) p.mastered=true;
+        if((h.level||0)>(p.level||0)) p.level=h.level;
+      }
     }
   });
   paintHits();
@@ -182,8 +222,8 @@ function merge(found,need){
 function tick(ts){
   if(!live.run)return;
   live.raf=requestAnimationFrame(tick);
-  if(live.busy||ts-live.last<280)return;
-  live.last=ts; const work=grab(document.getElementById("vid"),420); if(!work)return;
+  if(live.busy||ts-live.last<260)return;
+  live.last=ts; const work=grab(document.getElementById("vid"),480); if(!work)return;
   live.busy=true; try{merge(scanWork(work,false),2)}finally{live.busy=false}
 }
 async function cam(){
@@ -219,8 +259,10 @@ function stop(){
 function applyHits(){
   live.hits.forEach((h,k)=>{
     const p=progress[k]||{};
-    p.status="have"; p.owned=true; if(!p.level)p.level=1;
-    if(h.mastered)p.mastered=true;
+    p.status="have"; p.owned=true;
+    const lvl=h.level||1;
+    p.level=Math.max(p.level||0,lvl);
+    if(h.mastered){p.mastered=true; if(p.level<4)p.level=4}
     progress[k]=p;
   });
   save(); stop(); render();
@@ -232,7 +274,7 @@ async function ingest(files){
       const url=URL.createObjectURL(f); const img=new Image();
       await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url});
       URL.revokeObjectURL(url);
-      const sc=Math.min(1,960/Math.max(img.width,img.height));
+      const sc=Math.min(1,1280/Math.max(img.width,img.height));
       const c=document.createElement("canvas"); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
       const ctx=c.getContext("2d",{willReadFrequently:true}); ctx.drawImage(img,0,0,c.width,c.height);
       merge(scanWork({data:ctx.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height},true),1);
@@ -246,7 +288,7 @@ document.getElementById("done").onclick=applyHits;
 document.getElementById("cancel").onclick=stop;
 document.getElementById("snap").onclick=()=>{
   if(live.snap||!live.stream){document.getElementById("file").click();return}
-  const work=grab(document.getElementById("vid"),960); if(work) merge(scanWork(work,true),1);
+  const work=grab(document.getElementById("vid"),1280); if(work) merge(scanWork(work,true),1);
 };
 document.getElementById("file").onchange=e=>{ingest(e.target.files); e.target.value=""};
 document.getElementById("shots").onchange=e=>{
