@@ -6,37 +6,79 @@ const store={
   set(k,v){localStorage.setItem(k,JSON.stringify(v))}
 };
 let progress=store.get("or_progress",{});
+let filter="all";
 KEYS.forEach(k=>{
   const p=progress[k]||{};
   progress[k]={status:p.status||(p.owned?"have":"out"),owned:!!p.owned||p.status==="have",level:+(p.level||0),mastered:!!p.mastered};
 });
 function save(){store.set("or_progress",progress)}
+function stOf(p){return p.status==="have"||p.status==="buyback"?"have":"out"}
+function vClass(v){return v==="Gold"?"gold":v==="Cheat Master"?"cm":"base"}
+function shortVar(v){return v==="Cheat Master"?"CM":v}
 function render(){
-  const g=document.getElementById("grid");
-  let have=0,out=0;
-  g.innerHTML=KEYS.map(k=>{
+  let have=0,out=0,master=0;
+  KEYS.forEach(k=>{
     const p=progress[k];
-    const st=p.status==="have"||p.status==="buyback"?"have":"out";
-    if(st==="have")have++; else out++;
-    const [n,v]=k.split("|");
-    const crown=p.mastered?"\u265B ":"";
-    return `<button class="tile ${st}${p.mastered?" mastered":""}" data-k="${k}">${crown}${n}<br>${v}${p.level?" \u00b7 Lvl "+p.level:""}</button>`;
-  }).join("");
-  document.getElementById("count").textContent=have+" have \u00b7 "+out+" still out \u00b7 tap = have/out \u00b7 double-tap = mastered";
-  g.querySelectorAll(".tile").forEach(b=>{
-    b.onclick=()=>{
-      const p=progress[b.dataset.k];
-      p.status=p.status==="have"?"out":"have"; p.owned=p.status==="have"; if(p.status==="have"&&!p.level)p.level=1;
-      save(); render();
-    };
-    b.ondblclick=e=>{
-      e.preventDefault();
-      const p=progress[b.dataset.k];
-      p.mastered=!p.mastered; if(p.mastered){p.status="have";p.owned=true; if(p.level<4)p.level=4}
-      save(); render();
-    };
+    if(stOf(p)==="have")have++; else out++;
+    if(p.mastered)master++;
   });
+  document.getElementById("nHave").textContent=have;
+  document.getElementById("nOut").textContent=out;
+  document.getElementById("nMaster").textContent=master;
+  const board=document.getElementById("board");
+  board.innerHTML=NAMES.map(n=>{
+    const keys=STD.map(v=>n+"|"+v);
+    const owned=keys.filter(k=>stOf(progress[k])==="have").length;
+    const tiles=keys.map(k=>{
+      const p=progress[k], st=stOf(p), [,v]=k.split("|");
+      if(filter==="have"&&st!=="have")return "";
+      if(filter==="out"&&st!=="out")return "";
+      if(filter==="mastered"&&!p.mastered)return "";
+      return `<button class="tile ${st} ${vClass(v)}${p.mastered?" mastered":""}" data-k="${k}">
+        <span class="v">${shortVar(v)}</span>
+        ${p.level?`<span class="lvl" data-lvl="${k}">Lvl ${p.level}</span>`:`<span class="lvl dim">—</span>`}
+      </button>`;
+    }).join("");
+    if(filter!=="all"&&!tiles.trim())return "";
+    return `<section class="row"><div class="row-h"><strong>${n}</strong><em>${owned}/3</em></div><div class="vars">${tiles||'<span class="v">No tiles in this filter</span>'}</div></section>`;
+  }).join("");
+  board.querySelectorAll(".tile").forEach(bindTile);
 }
+function bindTile(b){
+  let hold=0,held=false;
+  const start=()=>{held=false;hold=setTimeout(()=>{
+    held=true;
+    const p=progress[b.dataset.k];
+    p.mastered=!p.mastered;
+    if(p.mastered){p.status="have";p.owned=true;if(p.level<4)p.level=4}
+    save(); render();
+  },480)};
+  const end=e=>{
+    clearTimeout(hold);
+    if(held){e.preventDefault();return}
+  };
+  b.ontouchstart=start; b.onmousedown=start;
+  b.ontouchend=end; b.onmouseup=end; b.onmouseleave=()=>clearTimeout(hold);
+  b.onclick=e=>{
+    if(held){e.preventDefault();return}
+    if(e.target.dataset.lvl){
+      const p=progress[e.target.dataset.lvl];
+      if(stOf(p)==="have"){p.level=p.level>=5?1:p.level+1;save();render()}
+      return;
+    }
+    const p=progress[b.dataset.k];
+    p.status=stOf(p)==="have"?"out":"have"; p.owned=p.status==="have";
+    if(p.status==="out")p.mastered=false;
+    if(p.status==="have"&&!p.level)p.level=1;
+    save(); render();
+  };
+}
+document.getElementById("filters").onclick=e=>{
+  const f=e.target.dataset.f; if(!f)return;
+  filter=f;
+  document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("on",c.dataset.f===f));
+  render();
+};
 function dist(a,b){let d=0;for(let i=0;i<b.length;i++){const t=a[i]-b[i];d+=t*t}return Math.sqrt(d)}
 function center(vec){
   if(!vec)return null;
@@ -201,7 +243,7 @@ function grab(video,max){
 const live={stream:null,run:false,hits:new Map(),pend:new Map(),raf:0,busy:false,last:0,snap:false};
 function setSt(t){document.getElementById("st").textContent=t}
 function paintHits(){
-  document.getElementById("hits").innerHTML=[...live.hits.entries()].map(([k,h])=>`<span class="chip">${h.mastered?"\u265B ":""}${k.replace("|"," \u00b7 ")}${h.level?" L"+h.level:""}</span>`).join("")||'<span class="chip">No lock yet</span>';
+  document.getElementById("hits").innerHTML=[...live.hits.entries()].map(([k,h])=>`<span class="chip">${h.mastered?"♛ ":""}${k.replace("|"," · ")}${h.level?" L"+h.level:""}</span>`).join("")||'<span class="chip">No lock yet</span>';
 }
 function merge(found,need){
   found.forEach(h=>{
@@ -217,7 +259,7 @@ function merge(found,need){
   });
   paintHits();
   const n=live.hits.size;
-  setSt(n?n+" locked. Crown = mastered.":"Point at tiles \u2014 grid or one-at-a-time.");
+  setSt(n?n+" locked. Save to write the board.":"Frame the locker or one tile.");
 }
 function tick(ts){
   if(!live.run)return;
@@ -239,7 +281,7 @@ async function cam(){
 async function startLive(){
   if(!window.SPRITE_FP){setSt("Fingerprints missing.");document.getElementById("live").classList.add("open");return}
   live.hits=new Map(); live.pend=new Map(); live.snap=false;
-  document.getElementById("live").classList.add("open"); paintHits(); setSt("Opening camera\u2026");
+  document.getElementById("live").classList.add("open"); paintHits(); setSt("Opening camera…");
   try{
     live.stream=await cam();
     const v=document.getElementById("vid"); v.srcObject=live.stream; await v.play().catch(()=>{});
@@ -268,7 +310,7 @@ function applyHits(){
   save(); stop(); render();
 }
 async function ingest(files){
-  setSt("Scanning locker grid\u2026");
+  setSt("Scanning locker grid…");
   for(const f of files||[]){
     try{
       const url=URL.createObjectURL(f); const img=new Image();
@@ -280,7 +322,7 @@ async function ingest(files){
       merge(scanWork({data:ctx.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height},true),1);
     }catch(e){}
   }
-  if(!live.hits.size) setSt("No lock. Get closer to the tiles or tap them on the board.");
+  if(!live.hits.size) setSt("No lock. Get closer or tap tiles on the board.");
 }
 document.getElementById("scanBtn").onclick=startLive;
 document.getElementById("shotBtn").onclick=()=>document.getElementById("shots").click();
