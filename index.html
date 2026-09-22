@@ -39,7 +39,7 @@ button,.chip{min-height:42px;border-radius:12px;border:1px solid var(--line);bac
 .tile{aspect-ratio:.82;border-radius:12px;border:1.5px solid var(--line);background:#0b1220;
   display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;
   font-size:.62rem;text-align:center;padding:0;position:relative;color:var(--text);overflow:hidden}
-.tile .art{flex:1;min-height:0;background:#152036 center/cover no-repeat;background-size:300% 1600%}
+.tile .art{flex:1;min-height:52px;background:#152036 center/contain no-repeat}
 .tile .meta{padding:5px 4px 6px;background:rgba(7,11,20,.82)}
 .tile .v{font-size:.62rem;color:var(--muted);font-weight:700}
 .tile .lvl{font-size:.62rem;color:var(--accent)}
@@ -60,9 +60,9 @@ video{flex:1;width:100%;object-fit:cover}
 </head>
 <body>
 <header>
-  <div class="kicker">Chapter 7 · Season 4 · 16 × 3 = 48</div>
+  <div class="kicker">Chapter 7 · Season 4 · 18 × 3 = 54</div>
   <h1>Override locker</h1>
-  <p class="sub">Artwork on every variant · tap have/out · hold for mastered crown</p>
+  <p class="sub">Honey + Bullet are on the board now · tap have/out · hold for crown</p>
 </header>
 <div class="stats">
   <div class="stat"><b id="nHave">0</b><span>Have</span></div>
@@ -74,12 +74,12 @@ video{flex:1;width:100%;object-fit:cover}
   <button id="shotBtn">Scan screenshot</button>
 </div>
 <div class="filters" id="filters">
-  <button class="chip on" data-f="all">All 48</button>
+  <button class="chip on" data-f="all">All</button>
   <button class="chip" data-f="have">Have</button>
   <button class="chip" data-f="out">Out</button>
   <button class="chip" data-f="mastered">Mastered</button>
 </div>
-<p class="hint">Tap = have/out · Hold 0.5s = crown · Tap Lvl to bump 1–5</p>
+<p class="hint">Scroll to the bottom for Honey and Bullet. Tap = have/out · Hold = crown</p>
 <div class="board" id="board"></div>
 <input id="file" type="file" accept="image/*" capture="environment" hidden/>
 <input id="shots" type="file" accept="image/*" multiple hidden/>
@@ -96,7 +96,7 @@ video{flex:1;width:100%;object-fit:cover}
     </div>
   </div>
 </div>
-<script src="sprite-fp.js?v=20260922e"></script>
-<script src="phone.js?v=20260922e"></script>
+<script src="sprite-fp.js?v=20260922f"></script>
+<script src="phone.js?v=20260922f"></script>
 </body>
 </html>
