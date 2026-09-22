@@ -28,11 +28,25 @@ function render(){
   });
 }
 function dist(a,b){let d=0;for(let i=0;i<b.length;i++){const t=a[i]-b[i];d+=t*t}return Math.sqrt(d)}
+function center(vec){
+  if(!vec)return null;
+  const out=new Float32Array(vec.length);
+  let mr=0,mg=0,mb=0,n=vec.length/3;
+  for(let i=0;i<vec.length;i+=3){mr+=vec[i];mg+=vec[i+1];mb+=vec[i+2]}
+  mr/=n; mg/=n; mb/=n;
+  for(let i=0;i<vec.length;i+=3){out[i]=vec[i]-mr;out[i+1]=vec[i+1]-mg;out[i+2]=vec[i+2]-mb}
+  return out;
+}
+const NORM={};
+function dbNorm(k,fp){
+  if(NORM[k])return NORM[k];
+  return NORM[k]=center(fp);
+}
 function fpFrom(data,w,h,x,y,tw,th){
   const n=12,vec=new Float32Array(n*n*3);
   const x0=Math.max(0,Math.floor(x)),y0=Math.max(0,Math.floor(y));
   const x1=Math.min(w,Math.ceil(x+tw)),y1=Math.min(h,Math.ceil(y+th));
-  const cw=x1-x0,ch=y1-y0; if(cw<10||ch<10)return null;
+  const cw=x1-x0,ch=y1-y0; if(cw<12||ch<12)return null;
   for(let gy=0;gy<n;gy++){
     const r0=y0+Math.floor(gy*ch/n),r1=Math.max(r0+1,y0+Math.floor((gy+1)*ch/n));
     for(let gx=0;gx<n;gx++){
@@ -46,23 +60,83 @@ function fpFrom(data,w,h,x,y,tw,th){
 }
 function match(vec){
   const db=window.SPRITE_FP||{};
+  const q=center(vec); if(!q)return {key:null,dist:1e9,margin:0};
   let best=1e9,second=1e9,key=null;
   for(const k of KEYS){
     const rec=db[k]; if(!rec) continue;
-    const d=dist(vec,rec.fp);
+    const d=dist(q,dbNorm(k,rec.fp));
     if(d<best){second=best;best=d;key=k} else if(d<second) second=d;
   }
   return {key,dist:best,margin:second-best};
 }
-function ok(m){return m&&m.key&&(m.dist<1.55||(m.dist<2.55&&m.margin>0.12)||(m.dist<3.05&&m.margin>0.35))}
+function ok(m,loose){
+  if(!m||!m.key)return false;
+  if(m.dist<1.35)return true;
+  if(m.dist<2.35&&m.margin>0.10)return true;
+  if(m.dist<2.95&&m.margin>0.28)return true;
+  if(loose&&m.dist<3.45&&m.margin>0.18)return true;
+  return false;
+}
+function cellCrops(x,y,tw,th){
+  const crops=[];
+  const inset=Math.round(Math.min(tw,th)*0.10);
+  crops.push([x+inset,y+inset,tw-inset*2,th-inset*2]);
+  const banner=Math.round(th*0.22);
+  crops.push([x+inset,y+inset,tw-inset*2,Math.max(16,th-inset-banner)]);
+  const s=Math.round(Math.min(tw,th)*0.62);
+  crops.push([x+(tw-s)/2,y+(th-s)*0.35,s,s]);
+  return crops;
+}
+function scanGrid(data,w,h,cols,rows,padX,padY,loose){
+  const hits=new Map();
+  const cellW=Math.floor((w-padX*2)/cols);
+  const cellH=Math.floor((h-padY*2)/rows);
+  if(cellW<22||cellH<22)return hits;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const x=padX+c*cellW,y=padY+r*cellH;
+      let best=null;
+      cellCrops(x,y,cellW,cellH).forEach(([cx,cy,cw,ch])=>{
+        const v=fpFrom(data,w,h,cx,cy,cw,ch); if(!v)return;
+        const m=match(v);
+        if(!best||m.dist<best.dist)best=m;
+      });
+      if(best&&ok(best,loose)){
+        const p=hits.get(best.key);
+        if(!p||best.dist<p.dist)hits.set(best.key,best);
+      }
+    }
+  }
+  return hits;
+}
 function scanWork(work,dense){
   const hits=new Map(),{data,w,h}=work,min=Math.min(w,h);
-  const add=(m)=>{if(!ok(m))return;const p=hits.get(m.key);if(!p||m.dist<p.dist)hits.set(m.key,m)};
-  add(match(fpFrom(data,w,h,0,0,w,h)));
-  [0.48,0.62,0.78,0.92].forEach(f=>{const s=Math.round(min*f),x=(w-s)/2,y=(h-s)/2;const v=fpFrom(data,w,h,x,y,s,s);if(v)add(match(v))});
+  const add=(m,loose)=>{if(!ok(m,loose))return;const p=hits.get(m.key);if(!p||m.dist<p.dist)hits.set(m.key,m)};
+  const v0=fpFrom(data,w,h,0,0,w,h); if(v0)add(match(v0));
+  [0.42,0.56,0.70,0.84,0.94].forEach(f=>{
+    const s=Math.round(min*f),x=(w-s)/2,y=(h-s)/2;
+    const v=fpFrom(data,w,h,x,y,s,s); if(v)add(match(v));
+  });
+  const layouts=[
+    [3,3,0.08,0.16],[3,3,0.12,0.20],[3,3,0.16,0.24],
+    [3,4,0.08,0.14],[3,4,0.12,0.18],
+    [3,2,0.10,0.22],[4,3,0.06,0.12]
+  ];
+  layouts.forEach(([cols,rows,px,py])=>{
+    const g=scanGrid(data,w,h,cols,rows,Math.round(w*px),Math.round(h*py),true);
+    if(g.size>=1)g.forEach(m=>add(m,true));
+  });
   if(dense){
-    const size=Math.round(min*0.22),step=Math.max(12,Math.round(size*0.4));
-    for(let y=0;y<=h-size;y+=step)for(let x=0;x<=w-size;x+=step){const v=fpFrom(data,w,h,x,y,size,size);if(v)add(match(v))}
+    const sizes=[0.16,0.22,0.30].map(f=>Math.round(min*f)).filter(s=>s>=24);
+    sizes.forEach(size=>{
+      const step=Math.max(10,Math.round(size*0.38));
+      for(let y=0;y<=h-size;y+=step){
+        for(let x=0;x<=w-size;x+=step){
+          const v=fpFrom(data,w,h,x,y,size,size); if(!v)continue;
+          add(match(v),true);
+        }
+      }
+    });
   }
   return [...hits.values()];
 }
@@ -87,18 +161,18 @@ function merge(found,need){
   });
   paintHits();
   const n=live.hits.size;
-  setSt(n?n+" locked. Pan to the next tile.":"Point at a sprite and hold.");
+  setSt(n?n+" locked. Pan or snap more tiles.":"Point at tiles — grid or one-at-a-time.");
 }
 function tick(ts){
   if(!live.run)return;
   live.raf=requestAnimationFrame(tick);
-  if(live.busy||ts-live.last<300)return;
-  live.last=ts; const work=grab(document.getElementById("vid"),360); if(!work)return;
+  if(live.busy||ts-live.last<280)return;
+  live.last=ts; const work=grab(document.getElementById("vid"),420); if(!work)return;
   live.busy=true; try{merge(scanWork(work,false),2)}finally{live.busy=false}
 }
 async function cam(){
   const tries=[
-    {video:{facingMode:{exact:"environment"}}},
+    {video:{facingMode:{exact:"environment"},width:{ideal:1280},height:{ideal:720}}},
     {video:{facingMode:{ideal:"environment"}}},
     {video:{facingMode:"environment"}},
     {video:true}
@@ -114,9 +188,9 @@ async function startLive(){
     live.stream=await cam();
     const v=document.getElementById("vid"); v.srcObject=live.stream; await v.play().catch(()=>{});
     live.run=true; live.raf=requestAnimationFrame(tick);
-    setSt("Live. Hold a tile in frame.");
+    setSt("Live. Frame the locker or one tile.");
   }catch(e){
-    live.snap=true; setSt("Live video blocked. Snap tiles instead.");
+    live.snap=true; setSt("Live video blocked. Snap the locker page.");
     document.getElementById("file").click();
   }
 }
@@ -131,18 +205,19 @@ function applyHits(){
   save(); stop(); render();
 }
 async function ingest(files){
-  setSt("Reading…");
+  setSt("Scanning locker grid…");
   for(const f of files||[]){
     try{
       const url=URL.createObjectURL(f); const img=new Image();
       await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url});
       URL.revokeObjectURL(url);
-      const sc=Math.min(1,720/Math.max(img.width,img.height));
+      const sc=Math.min(1,960/Math.max(img.width,img.height));
       const c=document.createElement("canvas"); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
       const ctx=c.getContext("2d",{willReadFrequently:true}); ctx.drawImage(img,0,0,c.width,c.height);
       merge(scanWork({data:ctx.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height},true),1);
     }catch(e){}
   }
+  if(!live.hits.size) setSt("No lock. Get closer to the tiles or tap them on the board.");
 }
 document.getElementById("scanBtn").onclick=startLive;
 document.getElementById("shotBtn").onclick=()=>document.getElementById("shots").click();
@@ -150,7 +225,7 @@ document.getElementById("done").onclick=applyHits;
 document.getElementById("cancel").onclick=stop;
 document.getElementById("snap").onclick=()=>{
   if(live.snap||!live.stream){document.getElementById("file").click();return}
-  const work=grab(document.getElementById("vid"),720); if(work) merge(scanWork(work,true),1);
+  const work=grab(document.getElementById("vid"),960); if(work) merge(scanWork(work,true),1);
 };
 document.getElementById("file").onchange=e=>{ingest(e.target.files); e.target.value=""};
 document.getElementById("shots").onchange=e=>{
