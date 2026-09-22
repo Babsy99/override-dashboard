@@ -18,6 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Assemble files
+        run: |
+          cat parts/index.* > index.html
+          cat parts/app.* > app.js
+          cat parts/fp.* > sprite-fp.js
+          ls -l index.html app.js sprite-fp.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
