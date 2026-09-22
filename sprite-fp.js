@@ -1,6 +1,6 @@
 window.SPRITE_FP_B64=window.SPRITE_FP_B64||{};
 (function(){
-  var files=['Jonesy','Bush','Adventure','8-Bit','Sonic','Tails','Shadow','Killswitch','Jackrabbit','Klombo','Crown','Storm-Scout'];
+  var files=['Jonesy','Bush','Adventure','8-Bit','Sonic','Tails','Shadow','Killswitch','Jackrabbit','Klombo','Crown','Storm-Scout','Pond','Crash','Blinky'];
   function decode(){
     var src=window.SPRITE_FP_B64||{}, db={};
     function dec(s){
@@ -15,7 +15,7 @@ window.SPRITE_FP_B64=window.SPRITE_FP_B64||{};
   if(!left){decode();return;}
   files.forEach(function(name){
     var s=document.createElement('script');
-    s.src='fp/'+name+'.js';
+    s.src='fp/'+name+'.js?v=20260922b';
     s.onload=s.onerror=function(){ if(--left<=0) decode(); };
     document.head.appendChild(s);
   });

@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>Override · Live Scan</title>
 <style>
-:root{--bg:#070b14;--card:#111827;--line:rgba(148,163,184,.2);--text:#f1f5f9;--muted:#94a3b8;--accent:#22d3ee;--ok:#34d399}
+:root{--bg:#070b14;--card:#111827;--line:rgba(148,163,184,.2);--text:#f1f5f9;--muted:#94a3b8;--accent:#22d3ee;--ok:#34d399;--gold:#fbbf24}
 *{box-sizing:border-box}body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--text)}
 header{padding:14px 16px 8px}h1{margin:0;font-size:1.15rem}
 .sub{color:var(--muted);font-size:.8rem;margin-top:2px}
@@ -16,6 +16,7 @@ button{min-height:44px;border-radius:10px;border:1px solid var(--line);backgroun
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 24px}
 .tile{aspect-ratio:1;border-radius:10px;border:2px solid transparent;background:#121826;display:grid;place-items:center;font-size:.68rem;text-align:center;padding:6px}
 .tile.have{border-color:var(--ok)}.tile.out{opacity:.55}
+.tile.mastered{box-shadow:inset 0 0 0 1px var(--gold)}
 .live{position:fixed;inset:0;background:#000;display:none;flex-direction:column}
 .live.open{display:flex}
 video{flex:1;width:100%;object-fit:cover}
@@ -28,7 +29,7 @@ video{flex:1;width:100%;object-fit:cover}
 <body>
 <header>
   <h1>Override locker</h1>
-  <p class="sub">Phone live scan · same locker keys as the desktop dashboard</p>
+  <p class="sub">Phone live scan · Pond / Crash / Blinky on the board · same or_progress keys</p>
 </header>
 <div class="bar">
   <button class="primary" id="scanBtn">Live scan</button>
@@ -51,7 +52,7 @@ video{flex:1;width:100%;object-fit:cover}
     </div>
   </div>
 </div>
-<script src="sprite-fp.js"></script>
-<script src="phone.js"></script>
+<script src="sprite-fp.js?v=20260922b"></script>
+<script src="phone.js?v=20260922b"></script>
 </body>
 </html>
