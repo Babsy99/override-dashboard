@@ -1,9 +1,8 @@
-# Override Dashboard
+# Override Dashboard · phone live scan
 
-Phone link after GitHub Pages is on:
+Open on your phone (Safari or Chrome):
 
-https://babsy99.github.io/override-dashboard/
+- https://cdn.jsdelivr.net/gh/Babsy99/override-dashboard@main/index.html
+- GitHub Pages (after first deploy): https://babsy99.github.io/override-dashboard/
 
-Enable it: repo Settings → Pages → Source = Deploy from a branch → `main` / `/ (root)` → Save.
-
-Then copy `fortnite-override-dashboard.html` to `index.html` and `sprite-fp.js` next to it in this repo.
+Tap **Live scan**, allow the camera, hold a sprite tile in frame. Hits lock after two frames. **Done** writes them to the locker (`or_progress` in localStorage).
