@@ -1,6 +1,15 @@
 const STD=["Base","Gold","Cheat Master"];
-const NAMES=["Jonesy","Bush","Adventure","8-Bit","Sonic","Tails","Shadow","Killswitch","Jackrabbit","Klombo","Crown","Storm Scout","Pond","Crash","Blinky","Dumpster Dive"];
+const NAMES=["Jonesy","Bush","Adventure","8-Bit","Sonic","Tails","Shadow","Killswitch","Jackrabbit","Klombo","Crown","Storm Scout","Pond","Crash","Blinky","Dumpster Dive","Honey","Bullet"];
 const KEYS=NAMES.flatMap(n=>STD.map(v=>n+"|"+v));
+const ART_FILE={
+  "Storm Scout":"Storm_Scout",
+  "Dumpster Dive":"Dumpster_Dive",
+  Crash:"Crash_Bandicoot"
+};
+function artUrl(n,v){
+  const file=(ART_FILE[n]||n.replace(/ /g,"_"))+"__"+v.replace(/ /g,"_")+".png";
+  return "https://cdn.jsdelivr.net/gh/Babsy99/override-dashboard@main/art/"+encodeURIComponent(file);
+}
 const store={
   get(k,fb){try{return JSON.parse(localStorage.getItem(k))??fb}catch{return fb}},
   set(k,v){localStorage.setItem(k,JSON.stringify(v))}
@@ -35,8 +44,9 @@ function render(){
       if(filter==="out"&&st!=="out")return "";
       if(filter==="mastered"&&!p.mastered)return "";
       return `<button class="tile ${st} ${vClass(v)}${p.mastered?" mastered":""}" data-k="${k}">
-        <span class="v">${shortVar(v)}</span>
-        ${p.level?`<span class="lvl" data-lvl="${k}">Lvl ${p.level}</span>`:`<span class="lvl dim">—</span>`}
+        <span class="art" style="background-image:url('${artUrl(n,v)}')"></span>
+        <span class="meta"><span class="v">${shortVar(v)}</span>
+        ${p.level?`<span class="lvl" data-lvl="${k}">Lvl ${p.level}</span>`:`<span class="lvl">—</span>`}</span>
       </button>`;
     }).join("");
     if(filter!=="all"&&!tiles.trim())return "";
@@ -53,10 +63,7 @@ function bindTile(b){
     if(p.mastered){p.status="have";p.owned=true;if(p.level<4)p.level=4}
     save(); render();
   },480)};
-  const end=e=>{
-    clearTimeout(hold);
-    if(held){e.preventDefault();return}
-  };
+  const end=e=>{clearTimeout(hold); if(held){e.preventDefault();return}};
   b.ontouchstart=start; b.onmousedown=start;
   b.ontouchend=end; b.onmouseup=end; b.onmouseleave=()=>clearTimeout(hold);
   b.onclick=e=>{
