@@ -15,16 +15,26 @@ function render(){
   const g=document.getElementById("grid");
   let have=0,out=0;
   g.innerHTML=KEYS.map(k=>{
-    const st=progress[k].status==="have"||progress[k].status==="buyback"?"have":"out";
+    const p=progress[k];
+    const st=p.status==="have"||p.status==="buyback"?"have":"out";
     if(st==="have")have++; else out++;
     const [n,v]=k.split("|");
-    return `<button class="tile ${st}" data-k="${k}">${n}<br>${v}</button>`;
+    const crown=p.mastered?"\u265B ":"";
+    return `<button class="tile ${st}" data-k="${k}">${crown}${n}<br>${v}${p.level?" \u00b7 "+p.level:""}</button>`;
   }).join("");
-  document.getElementById("count").textContent=have+" have · "+out+" still out";
-  g.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{
-    const k=b.dataset.k,p=progress[k];
-    p.status=p.status==="have"?"out":"have"; p.owned=p.status==="have"; if(p.status==="have"&&!p.level)p.level=1;
-    save(); render();
+  document.getElementById("count").textContent=have+" have \u00b7 "+out+" still out \u00b7 double-tap = mastered crown";
+  g.querySelectorAll(".tile").forEach(b=>{
+    b.onclick=()=>{
+      const p=progress[b.dataset.k];
+      p.status=p.status==="have"?"out":"have"; p.owned=p.status==="have"; if(p.status==="have"&&!p.level)p.level=1;
+      save(); render();
+    };
+    b.ondblclick=e=>{
+      e.preventDefault();
+      const p=progress[b.dataset.k];
+      p.mastered=!p.mastered; if(p.mastered){p.status="have";p.owned=true}
+      save(); render();
+    };
   });
 }
 function dist(a,b){let d=0;for(let i=0;i<b.length;i++){const t=a[i]-b[i];d+=t*t}return Math.sqrt(d)}
@@ -38,10 +48,7 @@ function center(vec){
   return out;
 }
 const NORM={};
-function dbNorm(k,fp){
-  if(NORM[k])return NORM[k];
-  return NORM[k]=center(fp);
-}
+function dbNorm(k,fp){return NORM[k]||(NORM[k]=center(fp))}
 function fpFrom(data,w,h,x,y,tw,th){
   const n=12,vec=new Float32Array(n*n*3);
   const x0=Math.max(0,Math.floor(x)),y0=Math.max(0,Math.floor(y));
@@ -57,6 +64,19 @@ function fpFrom(data,w,h,x,y,tw,th){
     }
   }
   return vec;
+}
+function goldPx(r,g,b){return r>165&&g>125&&b<120&&(r-b)>55&&(g-b)>30}
+function hasCrown(data,w,h,x,y,tw,th){
+  const x0=Math.max(0,Math.floor(x+tw*0.28)),x1=Math.min(w,Math.floor(x+tw*0.72));
+  const y0=Math.max(0,Math.floor(y+th*0.03)),y1=Math.min(h,Math.floor(y+th*0.28));
+  let gold=0,tot=0;
+  for(let py=y0;py<y1;py++){
+    for(let px=x0;px<x1;px++){
+      const i=(py*w+px)*4; tot++;
+      if(goldPx(data[i],data[i+1],data[i+2]))gold++;
+    }
+  }
+  return tot>20&&gold>16&&gold/tot>0.035;
 }
 function match(vec){
   const db=window.SPRITE_FP||{};
@@ -78,14 +98,14 @@ function ok(m,loose){
   return false;
 }
 function cellCrops(x,y,tw,th){
-  const crops=[];
   const inset=Math.round(Math.min(tw,th)*0.10);
-  crops.push([x+inset,y+inset,tw-inset*2,th-inset*2]);
   const banner=Math.round(th*0.22);
-  crops.push([x+inset,y+inset,tw-inset*2,Math.max(16,th-inset-banner)]);
   const s=Math.round(Math.min(tw,th)*0.62);
-  crops.push([x+(tw-s)/2,y+(th-s)*0.35,s,s]);
-  return crops;
+  return [
+    [x+inset,y+inset,tw-inset*2,th-inset*2],
+    [x+inset,y+inset,tw-inset*2,Math.max(16,th-inset-banner)],
+    [x+(tw-s)/2,y+(th-s)*0.35,s,s]
+  ];
 }
 function scanGrid(data,w,h,cols,rows,padX,padY,loose){
   const hits=new Map();
@@ -102,6 +122,7 @@ function scanGrid(data,w,h,cols,rows,padX,padY,loose){
         if(!best||m.dist<best.dist)best=m;
       });
       if(best&&ok(best,loose)){
+        best.mastered=hasCrown(data,w,h,x,y,cellW,cellH);
         const p=hits.get(best.key);
         if(!p||best.dist<p.dist)hits.set(best.key,best);
       }
@@ -117,24 +138,15 @@ function scanWork(work,dense){
     const s=Math.round(min*f),x=(w-s)/2,y=(h-s)/2;
     const v=fpFrom(data,w,h,x,y,s,s); if(v)add(match(v));
   });
-  const layouts=[
-    [3,3,0.08,0.16],[3,3,0.12,0.20],[3,3,0.16,0.24],
-    [3,4,0.08,0.14],[3,4,0.12,0.18],
-    [3,2,0.10,0.22],[4,3,0.06,0.12]
-  ];
-  layouts.forEach(([cols,rows,px,py])=>{
+  [[3,3,0.08,0.16],[3,3,0.12,0.20],[3,3,0.16,0.24],[3,4,0.08,0.14],[3,2,0.10,0.22]].forEach(([cols,rows,px,py])=>{
     const g=scanGrid(data,w,h,cols,rows,Math.round(w*px),Math.round(h*py),true);
-    if(g.size>=1)g.forEach(m=>add(m,true));
+    g.forEach(m=>add(m,true));
   });
   if(dense){
-    const sizes=[0.16,0.22,0.30].map(f=>Math.round(min*f)).filter(s=>s>=24);
-    sizes.forEach(size=>{
+    [0.16,0.22,0.30].map(f=>Math.round(min*f)).filter(s=>s>=24).forEach(size=>{
       const step=Math.max(10,Math.round(size*0.38));
-      for(let y=0;y<=h-size;y+=step){
-        for(let x=0;x<=w-size;x+=step){
-          const v=fpFrom(data,w,h,x,y,size,size); if(!v)continue;
-          add(match(v),true);
-        }
+      for(let y=0;y<=h-size;y+=step)for(let x=0;x<=w-size;x+=step){
+        const v=fpFrom(data,w,h,x,y,size,size); if(v)add(match(v),true);
       }
     });
   }
@@ -152,16 +164,20 @@ function grab(video,max){
 const live={stream:null,run:false,hits:new Map(),pend:new Map(),raf:0,busy:false,last:0,snap:false};
 function setSt(t){document.getElementById("st").textContent=t}
 function paintHits(){
-  document.getElementById("hits").innerHTML=[...live.hits.keys()].map(k=>`<span class="chip">${k.replace("|"," · ")}</span>`).join("")||'<span class="chip">No lock yet</span>';
+  document.getElementById("hits").innerHTML=[...live.hits.entries()].map(([k,h])=>`<span class="chip">${h.mastered?"\u265B ":""}${k.replace("|"," \u00b7 ")}</span>`).join("")||'<span class="chip">No lock yet</span>';
 }
 function merge(found,need){
   found.forEach(h=>{
     const n=(live.pend.get(h.key)||0)+1; live.pend.set(h.key,n);
-    if(n>=need){const p=live.hits.get(h.key); if(!p||h.dist<p.dist) live.hits.set(h.key,h)}
+    if(n>=need){
+      const p=live.hits.get(h.key);
+      if(!p||h.dist<p.dist) live.hits.set(h.key,h);
+      else if(h.mastered) p.mastered=true;
+    }
   });
   paintHits();
   const n=live.hits.size;
-  setSt(n?n+" locked. Pan or snap more tiles.":"Point at tiles — grid or one-at-a-time.");
+  setSt(n?n+" locked. Crown = mastered.":"Point at tiles \u2014 grid or one-at-a-time.");
 }
 function tick(ts){
   if(!live.run)return;
@@ -181,9 +197,9 @@ async function cam(){
   throw new Error("no cam");
 }
 async function startLive(){
-  if(!window.SPRITE_FP){setSt("Fingerprints missing. sprite-fp.js did not load.");document.getElementById("live").classList.add("open");return}
+  if(!window.SPRITE_FP){setSt("Fingerprints missing.");document.getElementById("live").classList.add("open");return}
   live.hits=new Map(); live.pend=new Map(); live.snap=false;
-  document.getElementById("live").classList.add("open"); paintHits(); setSt("Opening camera…");
+  document.getElementById("live").classList.add("open"); paintHits(); setSt("Opening camera\u2026");
   try{
     live.stream=await cam();
     const v=document.getElementById("vid"); v.srcObject=live.stream; await v.play().catch(()=>{});
@@ -201,11 +217,16 @@ function stop(){
   document.getElementById("live").classList.remove("open");
 }
 function applyHits(){
-  live.hits.forEach((h,k)=>{const p=progress[k]||{}; p.status="have"; p.owned=true; if(!p.level)p.level=1; progress[k]=p});
+  live.hits.forEach((h,k)=>{
+    const p=progress[k]||{};
+    p.status="have"; p.owned=true; if(!p.level)p.level=1;
+    if(h.mastered)p.mastered=true;
+    progress[k]=p;
+  });
   save(); stop(); render();
 }
 async function ingest(files){
-  setSt("Scanning locker grid…");
+  setSt("Scanning locker grid\u2026");
   for(const f of files||[]){
     try{
       const url=URL.createObjectURL(f); const img=new Image();
