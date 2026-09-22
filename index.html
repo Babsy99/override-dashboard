@@ -1,58 +1,103 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>Override · Live Scan</title>
+<meta name="theme-color" content="#070b14"/>
+<title>Override · Locker</title>
 <style>
-:root{--bg:#070b14;--card:#111827;--line:rgba(148,163,184,.2);--text:#f1f5f9;--muted:#94a3b8;--accent:#22d3ee;--ok:#34d399;--gold:#fbbf24}
-*{box-sizing:border-box}body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--text)}
-header{padding:14px 16px 8px}h1{margin:0;font-size:1.15rem}
-.sub{color:var(--muted);font-size:.8rem;margin-top:2px}
-.bar{display:flex;gap:8px;padding:0 16px 12px;flex-wrap:wrap}
-button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:#0f172a;color:var(--text);padding:8px 12px;font-weight:650}
+:root{
+  --bg:#070b14; --elev:#0d1422; --card:#121a2b; --line:rgba(148,163,184,.16);
+  --text:#f1f5f9; --muted:#94a3b8; --dim:#64748b;
+  --accent:#22d3ee; --ok:#34d399; --gold:#fbbf24; --cm:#4ade80; --rose:#fb7185;
+}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,system-ui,sans-serif}
+body{min-height:100dvh;background-image:radial-gradient(ellipse 80% 40% at 10% -10%,rgba(34,211,238,.12),transparent),radial-gradient(ellipse 60% 30% at 100% 0%,rgba(251,191,36,.07),transparent)}
+header{padding:18px 16px 10px}
+.kicker{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{margin:4px 0 0;font-size:1.35rem;letter-spacing:-.03em}
+.sub{color:var(--muted);font-size:.8rem;margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 12px}
+.stat{background:var(--elev);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat b{display:block;font-size:1.15rem}
+.stat span{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bar{display:flex;gap:8px;padding:0 16px 10px;flex-wrap:wrap}
+button,.chip{
+  min-height:42px;border-radius:12px;border:1px solid var(--line);background:#0f172a;color:var(--text);
+  padding:8px 12px;font-weight:650;font:inherit
+}
 .primary{background:linear-gradient(135deg,#22d3ee,#06b6d4);color:#082f36;border:0}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 24px}
-.tile{aspect-ratio:1;border-radius:10px;border:2px solid transparent;background:#121826;display:grid;place-items:center;font-size:.68rem;text-align:center;padding:6px}
-.tile.have{border-color:var(--ok)}.tile.out{opacity:.55}
-.tile.mastered{box-shadow:inset 0 0 0 1px var(--gold)}
-.live{position:fixed;inset:0;background:#000;display:none;flex-direction:column}
+.ghost{background:transparent}
+.filters{display:flex;gap:6px;padding:0 16px 8px;overflow:auto}
+.filters .chip{min-height:34px;border-radius:999px;font-size:.78rem;padding:6px 12px;flex:0 0 auto}
+.filters .chip.on{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.45);color:var(--accent)}
+.hint{padding:0 16px 10px;color:var(--dim);font-size:.75rem}
+.board{padding:0 12px 28px;display:flex;flex-direction:column;gap:10px}
+.row{background:var(--elev);border:1px solid var(--line);border-radius:16px;padding:10px}
+.row-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding:0 4px}
+.row-h strong{font-size:.92rem}
+.row-h em{font-style:normal;font-size:.72rem;color:var(--muted)}
+.vars{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.tile{aspect-ratio:1;border-radius:12px;border:1.5px solid var(--line);background:var(--card);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-size:.68rem;text-align:center;padding:6px 4px;position:relative;color:var(--text)}
+.tile .v{font-size:.62rem;color:var(--muted);font-weight:600}
+.tile .lvl{font-size:.62rem;color:var(--accent)}
+.tile.have{border-color:rgba(52,211,153,.7);background:rgba(52,211,153,.08)}
+.tile.out{opacity:.48}
+.tile.gold.have{border-color:rgba(251,191,36,.75);background:rgba(251,191,36,.08)}
+.tile.cm.have{border-color:rgba(74,222,128,.7);background:rgba(74,222,128,.08)}
+.tile.mastered::after{content:"♛";position:absolute;top:5px;right:7px;color:var(--gold);font-size:.85rem;text-shadow:0 0 8px rgba(251,191,36,.6)}
+.tile:active{transform:scale(.97)}
+.live{position:fixed;inset:0;background:#000;display:none;flex-direction:column;z-index:20}
 .live.open{display:flex}
 video{flex:1;width:100%;object-fit:cover}
-.hud{padding:12px 14px calc(14px + env(safe-area-inset-bottom));background:#070b14}
-.status{color:var(--accent);font-size:.85rem;min-height:2.2em}
-.hits{display:flex;gap:8px;overflow:auto;min-height:42px}
-.chip{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:.75rem}
+.hud{padding:12px 14px calc(16px + env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,#070b14 18%)}
+.status{color:var(--accent);font-size:.85rem;min-height:2.1em}
+.hits{display:flex;gap:8px;overflow:auto;min-height:40px;padding-bottom:6px}
+.hits .chip{min-height:32px;border-radius:999px;font-size:.75rem;background:#0b1220}
 </style>
 </head>
 <body>
 <header>
+  <div class="kicker">Chapter 7 · Season 4</div>
   <h1>Override locker</h1>
-  <p class="sub">Phone live scan · locker-card prints from your TV photos · same or_progress keys</p>
+  <p class="sub">Live scan the TV · tap a tile to have / out · hold for mastered crown</p>
 </header>
+<div class="stats">
+  <div class="stat"><b id="nHave">0</b><span>Have</span></div>
+  <div class="stat"><b id="nOut">0</b><span>Still out</span></div>
+  <div class="stat"><b id="nMaster">0</b><span>Mastered</span></div>
+</div>
 <div class="bar">
   <button class="primary" id="scanBtn">Live scan</button>
   <button id="shotBtn">Scan screenshot</button>
 </div>
-<p class="sub" id="count" style="padding:0 16px 8px"></p>
-<div class="grid" id="grid"></div>
-<input id="file" type="file" accept="image/*" capture="environment" style="position:absolute;opacity:0;width:0;height:0"/>
-<input id="shots" type="file" accept="image/*" multiple style="position:absolute;opacity:0;width:0;height:0"/>
+<div class="filters" id="filters">
+  <button class="chip on" data-f="all">All</button>
+  <button class="chip" data-f="have">Have</button>
+  <button class="chip" data-f="out">Out</button>
+  <button class="chip" data-f="mastered">Mastered</button>
+</div>
+<p class="hint">Tap = have/out · Hold 0.5s = crown · Tap Lvl when you have it to bump 1–5</p>
+<div class="board" id="board"></div>
+<input id="file" type="file" accept="image/*" capture="environment" hidden/>
+<input id="shots" type="file" accept="image/*" multiple hidden/>
 <div class="live" id="live">
   <video id="vid" playsinline webkit-playsinline muted autoplay></video>
-  <canvas id="cv" style="display:none"></canvas>
+  <canvas id="cv" hidden></canvas>
   <div class="hud">
     <p class="status" id="st">Opening camera…</p>
     <div class="hits" id="hits"></div>
     <div class="bar" style="padding:8px 0 0">
-      <button class="primary" id="done">Done</button>
-      <button id="snap">Snap / hard scan</button>
-      <button id="cancel">Cancel</button>
+      <button class="primary" id="done">Save locks</button>
+      <button id="snap">Hard scan</button>
+      <button class="ghost" id="cancel">Cancel</button>
     </div>
   </div>
 </div>
-<script src="sprite-fp.js?v=20260922c"></script>
-<script src="phone.js?v=20260922c"></script>
+<script src="sprite-fp.js?v=20260922d"></script>
+<script src="phone.js?v=20260922d"></script>
 </body>
 </html>
