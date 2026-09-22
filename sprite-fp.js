@@ -15,7 +15,7 @@ window.SPRITE_FP_B64=window.SPRITE_FP_B64||{};
   if(!left){decode();return;}
   files.forEach(function(name){
     var s=document.createElement('script');
-    s.src='fp/'+name+'.js?v=20260922c';
+    s.src='fp/'+name+'.js?v=20260922e';
     s.onload=s.onerror=function(){ if(--left<=0) decode(); };
     document.head.appendChild(s);
   });
